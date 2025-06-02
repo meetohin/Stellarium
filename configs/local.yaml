@@ -1,0 +1,398 @@
+# configs/local.yaml
+server:
+  port: ":8080"
+  read_timeout: "10s"
+  write_timeout: "10s"
+  idle_timeout: "60s"
+
+database:
+  host: "localhost"
+  port: 5432
+  user: "tradingbot"
+  password: "tradingbot123"
+  database: "tradingbot"
+  ssl_mode: "disable"
+
+redis:
+  host: "localhost"
+  port: 6379
+  password: ""
+  db: 0
+
+jwt:
+  secret: "your-super-secret-jwt-key-change-in-production"
+  expiration_time: "1h"
+
+auth:
+  port: ":9001"
+
+nats:
+  url: "nats://localhost:4222"
+
+influxdb:
+  url: "http://localhost:8086"
+  token: ""
+  org: "tradingbothub"
+  bucket: "market_data"
+
+# configs/dev.yaml
+server:
+  port: ":8080"
+  read_timeout: "15s"
+  write_timeout: "15s"
+  idle_timeout: "120s"
+
+database:
+  host: "postgres-dev"
+  port: 5432
+  user: "tradingbot"
+  password: "tradingbot123"
+  database: "tradingbot_dev"
+  ssl_mode: "require"
+
+redis:
+  host: "redis-dev"
+  port: 6379
+  password: "dev-redis-password"
+  db: 0
+
+jwt:
+  secret: "dev-jwt-secret-key"
+  expiration_time: "2h"
+
+auth:
+  port: ":9001"
+
+nats:
+  url: "nats://nats-dev:4222"
+
+influxdb:
+  url: "http://influxdb-dev:8086"
+  token: "dev-influx-token"
+  org: "tradingbothub"
+  bucket: "market_data_dev"
+
+# configs/prod.yaml
+server:
+  port: ":8080"
+  read_timeout: "30s"
+  write_timeout: "30s"
+  idle_timeout: "300s"
+
+database:
+  host: "postgres-prod"
+  port: 5432
+  user: "tradingbot"
+  password: "${DB_PASSWORD}"
+  database: "tradingbot_prod"
+  ssl_mode: "require"
+
+redis:
+  host: "redis-prod"
+  port: 6379
+  password: "${REDIS_PASSWORD}"
+  db: 0
+
+jwt:
+  secret: "${JWT_SECRET}"
+  expiration_time: "1h"
+
+auth:
+  port: ":9001"
+
+nats:
+  url: "nats://nats-prod:4222"
+
+influxdb:
+  url: "http://influxdb-prod:8086"
+  token: "${INFLUX_TOKEN}"
+  org: "tradingbothub"
+  bucket: "market_data_prod"
+
+---
+
+# .env.example
+# Copy this file to .env and fill in your values
+
+# Database
+DB_PASSWORD=your-production-db-password
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=tradingbot
+DB_USER=tradingbot
+
+# Redis
+REDIS_PASSWORD=your-redis-password
+REDIS_HOST=localhost
+REDIS_PORT=6379
+
+# JWT
+JWT_SECRET=your-super-secret-jwt-key-min-32-chars-long
+
+# InfluxDB
+INFLUX_TOKEN=your-influxdb-token
+INFLUX_ORG=tradingbothub
+INFLUX_BUCKET=market_data
+
+# NATS
+NATS_URL=nats://localhost:4222
+
+# Exchange API Keys (for future use)
+BINANCE_API_KEY=your-binance-api-key
+BINANCE_SECRET_KEY=your-binance-secret-key
+
+COINBASE_API_KEY=your-coinbase-api-key
+COINBASE_SECRET_KEY=your-coinbase-secret-key
+
+# External Services
+TELEGRAM_BOT_TOKEN=your-telegram-bot-token
+SENDGRID_API_KEY=your-sendgrid-api-key
+
+# Environment
+GIN_MODE=release
+LOG_LEVEL=info
+ENVIRONMENT=production
+
+---
+
+# deployments/docker/Dockerfile.auth-service
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+# Install dependencies
+RUN apk add --no-cache git ca-certificates tzdata
+
+# Copy go mod files
+COPY go.mod go.sum ./
+RUN go mod download
+
+# Copy source code
+COPY . .
+
+# Build the application
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o auth-service ./cmd/auth-service
+
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /root/
+
+# Copy the binary
+COPY --from=builder /app/auth-service .
+COPY --from=builder /app/configs ./configs
+
+# Expose port
+EXPOSE 9001
+
+CMD ["./auth-service"]
+
+---
+
+# deployments/docker/Dockerfile.api-gateway
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+RUN apk add --no-cache git ca-certificates tzdata
+
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
+
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o api-gateway ./cmd/api-gateway
+
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates tzdata
+WORKDIR /root/
+
+COPY --from=builder /app/api-gateway .
+COPY --from=builder /app/configs ./configs
+
+EXPOSE 8080
+
+CMD ["./api-gateway"]
+
+---
+
+# deployments/kubernetes/namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: tradingbothub
+  labels:
+    name: tradingbothub
+
+---
+
+# deployments/kubernetes/auth-service.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: auth-service
+  namespace: tradingbothub
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: auth-service
+  template:
+    metadata:
+      labels:
+        app: auth-service
+    spec:
+      containers:
+      - name: auth-service
+        image: tradingbothub/auth-service:latest
+        ports:
+        - containerPort: 9001
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tradingbothub-secrets
+              key: db-password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: tradingbothub-secrets
+              key: jwt-secret
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+        livenessProbe:
+          exec:
+            command:
+            - grpc_health_probe
+            - -addr=:9001
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          exec:
+            command:
+            - grpc_health_probe
+            - -addr=:9001
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: auth-service
+  namespace: tradingbothub
+spec:
+  selector:
+    app: auth-service
+  ports:
+  - protocol: TCP
+    port: 9001
+    targetPort: 9001
+  type: ClusterIP
+
+---
+
+# deployments/kubernetes/api-gateway.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api-gateway
+  namespace: tradingbothub
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: api-gateway
+  template:
+    metadata:
+      labels:
+        app: api-gateway
+    spec:
+      containers:
+      - name: api-gateway
+        image: tradingbothub/api-gateway:latest
+        ports:
+        - containerPort: 8080
+        env:
+        - name: DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: tradingbothub-secrets
+              key: db-password
+        - name: JWT_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: tradingbothub-secrets
+              key: jwt-secret
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: api-gateway
+  namespace: tradingbothub
+spec:
+  selector:
+    app: api-gateway
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8080
+  type: LoadBalancer
+
+---
+
+# deployments/kubernetes/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: tradingbothub-secrets
+  namespace: tradingbothub
+type: Opaque
+data:
+  # Base64 encoded values
+  # Use: echo -n "your-password" | base64
+  db-password: dHJhZGluZ2JvdDEyMw==  # tradingbot123
+  jwt-secret: eW91ci1zdXBlci1zZWNyZXQtand0LWtleQ==  # your-super-secret-jwt-key
+  redis-password: ""
+
+---
+
+# deployments/prometheus.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+rule_files:
+
+scrape_configs:
+  - job_name: 'tradingbothub'
+    static_configs:
+      - targets: ['api-gateway:8080', 'auth-service:9001']
+    metrics_path: /metrics
+    scrape_interval: 5s
