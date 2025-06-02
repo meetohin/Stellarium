@@ -8,7 +8,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
-gi
+
 var (
 	httpDuration = promauto.NewHistogramVec(prometheus.HistogramOpts{
 		Name: "http_duration_seconds",
