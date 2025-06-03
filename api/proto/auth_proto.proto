@@ -1,4 +1,4 @@
-// api/proto/auth/auth.proto
+add// api/proto/auth/auth.proto
 syntax = "proto3";
 
 package auth.v1;
