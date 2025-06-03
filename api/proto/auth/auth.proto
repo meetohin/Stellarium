@@ -8,6 +8,9 @@ service AuthService {
   rpc Register(RegisterRequest) returns (AuthResponse);
   rpc Login(LoginRequest) returns (AuthResponse);
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
+  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
+  rpc Logout(LogoutRequest) returns (LogoutResponse);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
 }
 
 message User {
@@ -16,8 +19,11 @@ message User {
   string username = 3;
   string first_name = 4;
   string last_name = 5;
-  bool is_active = 6;
-  google.protobuf.Timestamp created_at = 7;
+  string avatar = 6;
+  bool is_active = 7;
+  google.protobuf.Timestamp created_at = 8;
+  google.protobuf.Timestamp updated_at = 9;
+  google.protobuf.Timestamp last_login_at = 10;
 }
 
 message RegisterRequest {
@@ -37,6 +43,20 @@ message ValidateTokenRequest {
   string access_token = 1;
 }
 
+message RefreshTokenRequest {
+  string refresh_token = 1;
+}
+
+message LogoutRequest {
+  string access_token = 1;
+}
+
+message ChangePasswordRequest {
+  string access_token = 1;
+  string old_password = 2;
+  string new_password = 3;
+}
+
 message AuthResponse {
   string access_token = 1;
   string refresh_token = 2;
@@ -48,4 +68,14 @@ message ValidateTokenResponse {
   bool valid = 1;
   User user = 2;
   string error = 3;
+}
+
+message LogoutResponse {
+  bool success = 1;
+  string message = 2;
+}
+
+message ChangePasswordResponse {
+  bool success = 1;
+  string message = 2;
 }
