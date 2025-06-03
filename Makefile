@@ -42,10 +42,20 @@ migrate-create:
 	go run ./scripts/db/migrate.go create $$name
 
 # Protocol Buffers
+# Protocol Buffers
 proto:
 	@echo "Generating protobuf files..."
-    export PATH="$(shell go env GOPATH)/bin:$PATH" && \
-    protoc --go_out=. --go-grpc_out=. api/proto/auth/auth.proto
+	@chmod +x scripts/generate_proto.sh
+	@./scripts/generate_proto.sh
+
+proto-install:
+	@echo "Installing protobuf tools..."
+	go install google.golang.org/protobuf/cmd/protoc-gen-go@latest
+	go install google.golang.org/grpc/cmd/protoc-gen-go-grpc@latest
+
+proto-clean:
+	@echo "Cleaning generated protobuf files..."
+	rm -f api/proto/auth/*.pb.go
 
 
 # Testing
