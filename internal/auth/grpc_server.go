@@ -20,6 +20,7 @@ func NewGRPCServer(service *Service) *GRPCServer {
 }
 
 func (s *GRPCServer) Register(ctx context.Context, req *authpb.RegisterRequest) (*authpb.AuthResponse, error) {
+	// Convert protobuf request to internal request
 	authReq := &RegisterRequest{
 		Email:     req.Email,
 		Username:  req.Username,
@@ -28,6 +29,7 @@ func (s *GRPCServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 		LastName:  req.LastName,
 	}
 
+	// Call service
 	resp, err := s.service.Register(ctx, authReq)
 	if err != nil {
 		switch err {
@@ -38,6 +40,7 @@ func (s *GRPCServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 		}
 	}
 
+	// Convert internal response to protobuf response
 	return &authpb.AuthResponse{
 		AccessToken:  resp.AccessToken,
 		RefreshToken: resp.RefreshToken,
@@ -47,11 +50,13 @@ func (s *GRPCServer) Register(ctx context.Context, req *authpb.RegisterRequest) 
 }
 
 func (s *GRPCServer) Login(ctx context.Context, req *authpb.LoginRequest) (*authpb.AuthResponse, error) {
+	// Convert protobuf request to internal request
 	loginReq := &LoginRequest{
 		Email:    req.Email,
 		Password: req.Password,
 	}
 
+	// Call service
 	resp, err := s.service.Login(ctx, loginReq)
 	if err != nil {
 		switch err {
@@ -62,6 +67,7 @@ func (s *GRPCServer) Login(ctx context.Context, req *authpb.LoginRequest) (*auth
 		}
 	}
 
+	// Convert internal response to protobuf response
 	return &authpb.AuthResponse{
 		AccessToken:  resp.AccessToken,
 		RefreshToken: resp.RefreshToken,
@@ -111,7 +117,20 @@ func (s *GRPCServer) ChangePassword(ctx context.Context, req *authpb.ChangePassw
 	}, nil
 }
 
+// Helper function to convert internal User to protobuf User
 func (s *GRPCServer) userToProto(user *User) *authpb.User {
+	var createdAt, updatedAt, lastLoginAt *timestamppb.Timestamp
+
+	if !user.CreatedAt.IsZero() {
+		createdAt = timestamppb.New(user.CreatedAt)
+	}
+	if !user.UpdatedAt.IsZero() {
+		updatedAt = timestamppb.New(user.UpdatedAt)
+	}
+	if !user.LastLoginAt.IsZero() {
+		lastLoginAt = timestamppb.New(user.LastLoginAt)
+	}
+
 	return &authpb.User{
 		Id:          user.ID,
 		Email:       user.Email,
@@ -120,8 +139,7 @@ func (s *GRPCServer) userToProto(user *User) *authpb.User {
 		LastName:    user.LastName,
 		Avatar:      user.Avatar,
 		IsActive:    user.IsActive,
-		CreatedAt:   timestamppb.New(user.CreatedAt),
-		UpdatedAt:   timestamppb.New(user.UpdatedAt),
-		LastLoginAt: timestamppb.New(user.LastLoginAt),
+		CreatedAt:   createdAt,
+		UpdatedAt:   updatedAt,
+		LastLoginAt: lastLoginAt,
 	}
-}
