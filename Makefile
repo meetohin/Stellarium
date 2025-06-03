@@ -44,7 +44,9 @@ migrate-create:
 # Protocol Buffers
 proto:
 	@echo "Generating protobuf files..."
-	protoc --go_out=. --go-grpc_out=. api/proto/**/*.proto
+    export PATH="$(shell go env GOPATH)/bin:$PATH" && \
+    protoc --go_out=. --go-grpc_out=. api/proto/auth/auth.proto
+
 
 # Testing
 test:

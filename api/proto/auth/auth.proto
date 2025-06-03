@@ -1,7 +1,5 @@
 syntax = "proto3";
-
 package auth.v1;
-
 option go_package = "github.com/tradingbothub/platform/api/proto/auth";
 
 import "google/protobuf/timestamp.proto";
@@ -9,10 +7,7 @@ import "google/protobuf/timestamp.proto";
 service AuthService {
   rpc Register(RegisterRequest) returns (AuthResponse);
   rpc Login(LoginRequest) returns (AuthResponse);
-  rpc RefreshToken(RefreshTokenRequest) returns (AuthResponse);
   rpc ValidateToken(ValidateTokenRequest) returns (ValidateTokenResponse);
-  rpc Logout(LogoutRequest) returns (LogoutResponse);
-  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordResponse);
 }
 
 message User {
@@ -21,11 +16,8 @@ message User {
   string username = 3;
   string first_name = 4;
   string last_name = 5;
-  string avatar = 6;
-  bool is_active = 7;
-  google.protobuf.Timestamp created_at = 8;
-  google.protobuf.Timestamp updated_at = 9;
-  google.protobuf.Timestamp last_login_at = 10;
+  bool is_active = 6;
+  google.protobuf.Timestamp created_at = 7;
 }
 
 message RegisterRequest {
@@ -41,22 +33,8 @@ message LoginRequest {
   string password = 2;
 }
 
-message RefreshTokenRequest {
-  string refresh_token = 1;
-}
-
 message ValidateTokenRequest {
   string access_token = 1;
-}
-
-message LogoutRequest {
-  string access_token = 1;
-}
-
-message ChangePasswordRequest {
-  string access_token = 1;
-  string current_password = 2;
-  string new_password = 3;
 }
 
 message AuthResponse {
@@ -70,13 +48,4 @@ message ValidateTokenResponse {
   bool valid = 1;
   User user = 2;
   string error = 3;
-}
-
-message LogoutResponse {
-  bool success = 1;
-}
-
-message ChangePasswordResponse {
-  bool success = 1;
-  string message = 2;
 }
