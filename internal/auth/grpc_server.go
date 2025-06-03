@@ -2,7 +2,6 @@ package auth
 
 import (
 	"context"
-	"time"
 
 	authpb "github.com/tradingbothub/platform/api/proto/auth"
 	"google.golang.org/grpc/codes"
@@ -106,11 +105,18 @@ func (s *GRPCServer) ValidateToken(ctx context.Context, req *authpb.ValidateToke
 
 func (s *GRPCServer) Logout(ctx context.Context, req *authpb.LogoutRequest) (*authpb.LogoutResponse, error) {
 	// TODO: Implement token blacklisting in Redis
-	return &authpb.LogoutResponse{Success: true}, nil
+	return &authpb.LogoutResponse{
+		Success: true,
+		Message: "Logged out successfully",
+	}, nil
 }
 
 func (s *GRPCServer) ChangePassword(ctx context.Context, req *authpb.ChangePasswordRequest) (*authpb.ChangePasswordResponse, error) {
 	// TODO: Implement password change logic
+	// 1. Validate access token
+	// 2. Get user from token
+	// 3. Verify old password
+	// 4. Update password
 	return &authpb.ChangePasswordResponse{
 		Success: true,
 		Message: "Password changed successfully",
@@ -143,3 +149,4 @@ func (s *GRPCServer) userToProto(user *User) *authpb.User {
 		UpdatedAt:   updatedAt,
 		LastLoginAt: lastLoginAt,
 	}
+}
